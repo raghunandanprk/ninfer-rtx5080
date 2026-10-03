@@ -1,9 +1,9 @@
 """Convert RentedNoodle's OrcaRouter GSQ/RCO IQ3_XXS GGUF to NInfer.
 
 The converter deliberately preserves the RentedNoodle trunk and embedded MTP
-values as the value source.  The existing NInfer GSQ3 artifact is only a donor
-for components absent from the text-only GGUF (Vision and DFlash2) and for
-fallback frontend resources.
+values as the value source.  The RentedNoodle BF16 mmproj is the authoritative Vision source. The existing
+NInfer GSQ3 artifact is only a donor for components absent from the RentedNoodle
+release (principally DFlash2), the draft shortlist IDs, and fallback frontend resources.
 
 Target source:
   RentedNoodle/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-Uncensored
@@ -23,6 +23,7 @@ import time
 
 import numpy as np
 import torch
+from gguf import GGUFReader
 from gguf.quants import dequantize
 
 from tools.artifact.container import Artifact, ArtifactIdentity, ArtifactWriter
@@ -73,6 +74,90 @@ MTP_VECTOR_SOURCES = (
     "blk.64.ffn_norm.weight",
     "blk.64.nextn.shared_head_norm.weight",
 )
+
+
+class MmprojSource:
+    """Read the RentedNoodle Qwen3.8 BF16 mmproj into NInfer Vision objects."""
+
+    def __init__(self, path: str | Path):
+        self.path = Path(path)
+        self._reader = GGUFReader(str(path))
+        self._tensors = {tensor.name: tensor for tensor in self._reader.tensors}
+        if len(self._tensors) != 334:
+            raise ValueError(
+                f"{self.path}: expected 334 Qwen3.8 mmproj tensors, "
+                f"found {len(self._tensors)}"
+            )
+
+    def tensor(self, name: str) -> torch.Tensor:
+        try:
+            tensor = self._tensors[name]
+        except KeyError as exc:
+            raise ValueError(f"RentedNoodle mmproj is missing {name!r}") from exc
+        values = dequantize(np.asarray(tensor.data), tensor.tensor_type)
+        shape = tuple(reversed(tuple(int(dim) for dim in tensor.shape)))
+        array = np.asarray(values)
+        if array.size != int(np.prod(shape)):
+            raise ValueError(
+                f"{name}: decoded element count {array.size} does not match {shape}"
+            )
+        return torch.from_numpy(np.ascontiguousarray(array.reshape(shape)))
+
+    def object_tensor(self, object_name: str) -> torch.Tensor:
+        if object_name == "vision/patch_embedding":
+            first = self.tensor("v.patch_embd.weight")
+            second = self.tensor("v.patch_embd.weight.1")
+            if first.shape != (1152, 3, 16, 16) or second.shape != first.shape:
+                raise ValueError(
+                    "RentedNoodle mmproj patch halves do not match Qwen3.8 geometry"
+                )
+            # llama.cpp stores the temporal conv3d kernel as two conv2d halves.
+            # Reconstruct [out, channel, temporal, y, x], then flatten exactly
+            # like NInfer's safetensors converter does for patch_embed.proj.weight.
+            return torch.stack((first, second), dim=2).reshape(1152, 1536)
+        if object_name == "vision/patch_embedding_bias":
+            return self.tensor("v.patch_embd.bias")
+        if object_name == "vision/position_embedding":
+            return self.tensor("v.position_embd.weight")
+
+        if object_name.startswith("vision/layers/"):
+            parts = object_name.split("/")
+            layer = int(parts[2])
+            suffix = "/".join(parts[3:])
+            suffix_map = {
+                "attention/qkv": "attn_qkv.weight",
+                "attention/qkv_bias": "attn_qkv.bias",
+                "attention/output": "attn_out.weight",
+                "attention/output_bias": "attn_out.bias",
+                "mlp/fc1": "ffn_up.weight",
+                "mlp/fc1_bias": "ffn_up.bias",
+                "mlp/fc2": "ffn_down.weight",
+                "mlp/fc2_bias": "ffn_down.bias",
+                "norm1/weight": "ln1.weight",
+                "norm1/bias": "ln1.bias",
+                "norm2/weight": "ln2.weight",
+                "norm2/bias": "ln2.bias",
+            }
+            try:
+                gguf_suffix = suffix_map[suffix]
+            except KeyError as exc:
+                raise ValueError(f"unsupported NInfer Vision object {object_name}") from exc
+            return self.tensor(f"v.blk.{layer}.{gguf_suffix}")
+
+        merger_map = {
+            "vision/merger/fc1": "mm.0.weight",
+            "vision/merger/fc1_bias": "mm.0.bias",
+            "vision/merger/fc2": "mm.2.weight",
+            "vision/merger/fc2_bias": "mm.2.bias",
+            "vision/merger/norm/weight": "v.post_ln.weight",
+            "vision/merger/norm/bias": "v.post_ln.bias",
+        }
+        try:
+            return self.tensor(merger_map[object_name])
+        except KeyError as exc:
+            raise ValueError(f"unsupported NInfer Vision object {object_name}") from exc
+
+
 
 
 def _raw_tensor(source: GgufSource, name: str) -> torch.Tensor:
@@ -164,6 +249,7 @@ def _validate_source(source: GgufSource) -> None:
 def convert(
     gguf_path: str | Path,
     donor_artifact_path: str | Path,
+    mmproj_path: str | Path,
     out_path: str | Path,
     *,
     frontend_dir: str | Path | None = None,
@@ -174,6 +260,7 @@ def convert(
     resolved_device = pick_device(device)
     source = GgufSource(gguf_path)
     _validate_source(source)
+    vision = MmprojSource(mmproj_path)
 
     source_types = source.tensor_types
     specs = inventory.build_object_specs(source_types)
@@ -186,6 +273,7 @@ def convert(
     output.parent.mkdir(parents=True, exist_ok=True)
     encoded_trunk = 0
     encoded_mtp = 0
+    encoded_vision = 0
     copied = 0
     draft_payload: bytes | None = None
 
@@ -254,10 +342,24 @@ def convert(
                     del tensor
                     encoded_mtp += 1
 
+                elif obj.name.startswith("vision/"):
+                    tensor = vision.object_tensor(obj.name)
+                    spec = spec_by_name[obj.name]
+                    if tuple(tensor.shape) != spec.shape:
+                        raise ValueError(
+                            f"{obj.name}: RentedNoodle mmproj shape "
+                            f"{tuple(tensor.shape)} != expected {spec.shape}"
+                        )
+                    payload = family_conversion.encode_tensor_payload(
+                        tensor, spec, resolved_device
+                    )
+                    del tensor
+                    encoded_vision += 1
+
                 else:
-                    # Text norms/state tensors are unchanged by the OrcaRouter
-                    # surgical edit. Vision and DFlash2 are absent from this GGUF.
-                    # Preserve the validated NInfer donor values for those objects.
+                    # DFlash2 is not distributed by RentedNoodle. Text-side
+                    # non-matrix values are retained from the validated donor
+                    # where the existing RCO converter does not port them.
                     payload = bytes(donor.payload(donor.find(obj.name)))
                     copied += 1
 
@@ -282,12 +384,17 @@ def convert(
             "gguf": str(Path(gguf_path).resolve()),
         },
         "donor_artifact": str(Path(donor_artifact_path).resolve()),
+        "vision": {
+            "mmproj": str(Path(mmproj_path).resolve()),
+            "source": "RentedNoodle mmproj/mmproj-Qwen3.8-27B-BF16.gguf",
+        },
         "frontend_dir": (
             str(Path(frontend_dir).resolve()) if frontend_dir is not None else None
         ),
         "device": str(resolved_device),
         "encoded_trunk_objects": encoded_trunk,
         "encoded_mtp_objects": encoded_mtp,
+        "encoded_vision_objects": encoded_vision,
         "copied_objects": copied,
         "final_bytes": final_bytes,
         "elapsed_seconds": round(elapsed, 3),
@@ -295,7 +402,9 @@ def convert(
             "trunk matrices are sourced from the RentedNoodle v2.1 GGUF",
             "embedded blk.64 MTP values are sourced from the RentedNoodle v2.1 GGUF",
             "optimized NInfer draft_head is regenerated from the RentedNoodle output head",
-            "Vision and DFlash2 are copied from the validated GSQ3 donor artifact",
+            "all 333 NInfer Vision tensors are rebuilt from the RentedNoodle BF16 mmproj",
+            "the mmproj temporal patch halves are reconstructed into the NInfer conv3d layout",
+            "DFlash2 is copied from the validated GSQ3 donor artifact",
             "DFlash2 is not OrcaRouter-native and requires separate acceptance validation",
         ],
     }
@@ -303,7 +412,8 @@ def convert(
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(
         f"complete: {final_bytes} bytes in {elapsed:.1f}s; "
-        f"trunk={encoded_trunk} mtp={encoded_mtp} copied={copied}; "
+        f"trunk={encoded_trunk} mtp={encoded_mtp} vision={encoded_vision} "
+        f"copied={copied}; "
         f"report={report_path}",
         flush=True,
     )
@@ -314,6 +424,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gguf", type=Path, required=True)
     parser.add_argument("--donor-artifact", type=Path, required=True)
+    parser.add_argument("--mmproj", type=Path, required=True)
     parser.add_argument("--frontend-dir", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--device", default="cuda")
@@ -321,6 +432,7 @@ def main() -> None:
     convert(
         args.gguf,
         args.donor_artifact,
+        args.mmproj,
         args.out,
         frontend_dir=args.frontend_dir,
         device=args.device,
