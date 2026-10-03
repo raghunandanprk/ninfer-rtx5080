@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $Engine = Join-Path $Root "engine"
-$Source = Join-Path $Root "models\rentednoodle\Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.1.gguf"
+$Source = Join-Path $Root "models\rentednoodle\Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.0.gguf"
 $Donor = Join-Path $Root "models\qwen3_8_27b_gsq3.ninfer"
 $OutDir = Join-Path $Root "models\rentednoodle"
 $Output = Join-Path $OutDir "qwen3_8_27b_orcarouter_rentednoodle_gsqrco_iq3xxs.ninfer"
@@ -30,6 +30,8 @@ try {
     & $Python -m tools.convert.qwen3_8_27b.convert_rentednoodle `
         --gguf $Source `
         --donor-artifact $Donor `
+        --mmproj $Mmproj `
+        --frontend-dir $Frontend `
         --out $Output `
         --device cuda
     if ($LASTEXITCODE -ne 0) { throw "RentedNoodle NInfer conversion failed." }
