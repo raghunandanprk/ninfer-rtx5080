@@ -86,3 +86,42 @@ The optional workflow under `.github/workflows/import-upstream.yml` can be used 
 - `ISTA-DASLab/Qwen3.8-27B-3Bit-GSQ` — GSQ3 source checkpoint
 
 Apache-2.0 upstream licensing applies to the imported runtime and model components as documented by their respective projects.
+
+## RentedNoodle uncensored GSQ/RCO build
+
+The repo now includes a dedicated converter for:
+
+`RentedNoodle/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-Uncensored`
+
+Pinned source:
+
+- revision: `59a3d12af8e41ddd518994ab8dd7cce8efca2252`
+- file: `Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.1.gguf`
+- source size: about 9.67 GiB / 3.04 bpw
+- SHA-256: `ab955b5083d9cdf0bf55c37acdcae359b78756c4544d97960c23d8fca98feb9b`
+
+The converter uses the RentedNoodle GGUF for all ported trunk matrices and for its embedded
+`blk.64` MTP head. The NInfer GSQ3 artifact is used only as a donor for components absent from
+the text GGUF, notably Vision and the DFlash2 companion. The optimized NInfer draft head is
+regenerated from the RentedNoodle output head.
+
+Build it with:
+
+```powershell
+.\scripts\bootstrap-source.ps1
+.\scripts\download-rentednoodle.ps1
+.\scripts\download-model.ps1
+.\scripts\convert-rentednoodle.ps1
+```
+
+Then run:
+
+```powershell
+.\scripts\run-rentednoodle.ps1
+```
+
+The conversion emits both the `.ninfer` artifact and a `.conversion.json` provenance report.
+
+Important: DFlash2 is copied from the aligned GSQ3 donor and is therefore not assumed to be
+lossless against the OrcaRouter-modified trunk until acceptance is benchmarked. MTP is the
+preferred first validation path because the RentedNoodle v2.1 GGUF carries its own custom MTP head.
