@@ -95,15 +95,16 @@ The repo now includes a dedicated converter for:
 
 Pinned source:
 
-- revision: `59a3d12af8e41ddd518994ab8dd7cce8efca2252`
-- file: `Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.1.gguf`
-- source size: about 9.67 GiB / 3.04 bpw
-- SHA-256: `ab955b5083d9cdf0bf55c37acdcae359b78756c4544d97960c23d8fca98feb9b`
+- revision: `main`
+- file: `Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.0.gguf`
+- source size: about 9.75 GiB / 3.06 bpw
+- SHA-256: `41ad7dfb3f4397d626408a96e88a46c5964e88bd6c4240c191e1131af92ea8cd`
 
-The converter uses the RentedNoodle GGUF for all ported trunk matrices and for its embedded
-`blk.64` MTP head. The NInfer GSQ3 artifact is used only as a donor for components absent from
-the text GGUF, notably Vision and the DFlash2 companion. The optimized NInfer draft head is
-regenerated from the RentedNoodle output head.
+The converter uses the RentedNoodle GGUF for all ported trunk matrices and its embedded
+`blk.64` MTP head, and uses RentedNoodle's own `mmproj/mmproj-Qwen3.8-27B-BF16.gguf` for all
+333 NInfer Vision objects. The NInfer GSQ3 artifact remains a donor only for components not
+shipped by RentedNoodle, principally DFlash2 and the draft shortlist IDs. The optimized NInfer
+draft head is regenerated from the RentedNoodle output head.
 
 Build it with:
 
