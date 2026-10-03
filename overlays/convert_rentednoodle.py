@@ -7,7 +7,7 @@ release (principally DFlash2), the draft shortlist IDs, and fallback frontend re
 
 Target source:
   RentedNoodle/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-Uncensored
-  Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.1.gguf
+  Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.0.gguf
 
 The RCO allocation is mapped through NInfer's existing gsqrco inventory:
 IQ3/IQ2-family trunk tensors become the registered Q3G128 grid; wider source
@@ -37,9 +37,9 @@ from tools.convert.qwen3_8_27b.recipe_gsq3 import attention_indices
 
 RECIPE_ID = "qwen3_8_27b_rentednoodle_orcarouter_gsqrco_iq3xxs-v1"
 SOURCE_REPOSITORY = "RentedNoodle/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-Uncensored"
-SOURCE_REVISION = "59a3d12af8e41ddd518994ab8dd7cce8efca2252"
-SOURCE_FILE = "Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.1.gguf"
-SOURCE_SHA256 = "ab955b5083d9cdf0bf55c37acdcae359b78756c4544d97960c23d8fca98feb9b"
+SOURCE_REVISION = "main"
+SOURCE_FILE = "Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.0.gguf"
+SOURCE_SHA256 = "41ad7dfb3f4397d626408a96e88a46c5964e88bd6c4240c191e1131af92ea8cd"
 
 MTP_SOURCE_NAMES = {
     "mtp/input_projection": "blk.64.nextn.eh_proj.weight",
@@ -399,8 +399,8 @@ def convert(
         "final_bytes": final_bytes,
         "elapsed_seconds": round(elapsed, 3),
         "notes": [
-            "trunk matrices are sourced from the RentedNoodle v2.1 GGUF",
-            "embedded blk.64 MTP values are sourced from the RentedNoodle v2.1 GGUF",
+            "trunk matrices are sourced from the RentedNoodle v2.0 GGUF",
+            "embedded blk.64 MTP values are sourced from the RentedNoodle v2.0 GGUF",
             "optimized NInfer draft_head is regenerated from the RentedNoodle output head",
             "all 333 NInfer Vision tensors are rebuilt from the RentedNoodle BF16 mmproj",
             "the mmproj temporal patch halves are reconstructed into the NInfer conv3d layout",
