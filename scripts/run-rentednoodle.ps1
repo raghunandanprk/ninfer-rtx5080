@@ -9,5 +9,5 @@ if (-not (Test-Path $Artifact)) {
 
 $env:NINFER_ARTIFACT = $Artifact
 if (-not $env:NINFER_CONTEXT) { $env:NINFER_CONTEXT = "102400" }
-if (-not $env:NINFER_VISION) { $env:NINFER_VISION = "0" }
+if (-not $env:NINFER_VISION) { $env:NINFER_VISION = "1" }
 & (Join-Path $Root "scripts\run-mtp.ps1")
