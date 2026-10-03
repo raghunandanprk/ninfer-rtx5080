@@ -26,3 +26,12 @@ if (-not $Text.Contains("CMAKE_CUDA_ARCHITECTURES 120a")) { throw "Failed to pat
 Set-Content -Path $CMake -Value $Text -NoNewline
 
 Write-Host "GSQ3 source prepared for RTX 5080 / sm_120a at $Engine"
+
+# Install project-specific converter overlays into the bootstrapped engine tree.
+$Overlay = Join-Path $Root "overlays\convert_rentednoodle.py"
+$OverlayDest = Join-Path $Engine "tools\convert\qwen3_8_27b\convert_rentednoodle.py"
+if (Test-Path $Overlay) {
+    Copy-Item $Overlay $OverlayDest -Force
+    Write-Host "Installed RentedNoodle converter overlay:"
+    Write-Host "  $OverlayDest"
+}
