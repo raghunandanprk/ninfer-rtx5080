@@ -1,0 +1,43 @@
+$ErrorActionPreference = "Stop"
+
+$Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$Engine = Join-Path $Root "engine"
+$Source = Join-Path $Root "models\rentednoodle\Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.1.gguf"
+$Donor = Join-Path $Root "models\qwen3_8_27b_gsq3.ninfer"
+$OutDir = Join-Path $Root "models\rentednoodle"
+$Output = Join-Path $OutDir "qwen3_8_27b_orcarouter_rentednoodle_gsqrco_iq3xxs.ninfer"
+
+if (-not (Test-Path (Join-Path $Engine "tools\convert\qwen3_8_27b\convert_rentednoodle.py"))) {
+    & (Join-Path $Root "scripts\bootstrap-source.ps1")
+}
+if (-not (Test-Path $Source)) {
+    & (Join-Path $Root "scripts\download-rentednoodle.ps1")
+}
+if (-not (Test-Path $Donor)) {
+    & (Join-Path $Root "scripts\download-model.ps1")
+}
+
+$Python = if ($env:NINFER_PYTHON) { $env:NINFER_PYTHON } else { "python" }
+
+& $Python -c "import torch, numpy, safetensors, gguf; print('converter deps OK; torch=', torch.__version__, 'cuda=', torch.cuda.is_available())"
+if ($LASTEXITCODE -ne 0) {
+    throw "Missing converter Python dependencies. Install torch, numpy, safetensors and gguf, or set NINFER_PYTHON to a prepared Python executable."
+}
+
+New-Item -ItemType Directory -Force $OutDir | Out-Null
+Push-Location $Engine
+try {
+    & $Python -m tools.convert.qwen3_8_27b.convert_rentednoodle `
+        --gguf $Source `
+        --donor-artifact $Donor `
+        --out $Output `
+        --device cuda
+    if ($LASTEXITCODE -ne 0) { throw "RentedNoodle NInfer conversion failed." }
+} finally {
+    Pop-Location
+}
+
+Write-Host "Converted artifact:"
+Write-Host "  $Output"
+Write-Host "Conversion report:"
+Write-Host "  $Output.conversion.json"
