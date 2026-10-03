@@ -1,0 +1,73 @@
+name: Import GSQ3 upstream for RTX 5080
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/import-upstream.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout destination
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Import pinned NInfer-4080 GSQ3 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          UPSTREAM_REPO="https://github.com/roofkid/ninfer-4080.git"
+          UPSTREAM_BRANCH="rtx4080-port"
+          UPSTREAM_COMMIT="1794c8692d65fcd7152071a58e08886eee68134e"
+          rm -rf /tmp/ninfer-upstream
+          git clone --branch "$UPSTREAM_BRANCH" "$UPSTREAM_REPO" /tmp/ninfer-upstream
+          git -C /tmp/ninfer-upstream checkout "$UPSTREAM_COMMIT"
+          rm -rf /tmp/ninfer-upstream/.git
+          rsync -a --exclude ".git" --exclude ".github/workflows/import-upstream.yml" /tmp/ninfer-upstream/ ./
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("CMakeLists.txt")
+          s = p.read_text()
+          s = s.replace("compiled only for sm_89", "compiled only for sm_120a")
+          s = s.replace("CMAKE_CUDA_ARCHITECTURES 89 CACHE", "CMAKE_CUDA_ARCHITECTURES 120a CACHE")
+          s = s.replace('CMAKE_CUDA_ARCHITECTURES STREQUAL "89"', 'CMAKE_CUDA_ARCHITECTURES STREQUAL "120a"')
+          s = s.replace("NInfer supports only CMAKE_CUDA_ARCHITECTURES=89", "This RTX 5080 GSQ3 port requires CMAKE_CUDA_ARCHITECTURES=120a")
+          if "CMAKE_CUDA_ARCHITECTURES 120a" not in s:
+              raise SystemExit("failed to patch root CMake architecture gate")
+          p.write_text(s)
+          Path("RTX5080_PORT_BASE.md").write_text("""# RTX 5080 GSQ3 port base
+
+Imported from `roofkid/ninfer-4080`, branch `rtx4080-port`, commit
+`1794c8692d65fcd7152071a58e08886eee68134e`.
+
+The upstream fork provides Qwen3.8-27B GSQ3 (`Q3G128_F16S`), Q3 prefill/decode
+kernels, `rk4v4-e8` KV, MTP3, and the requantized DFlash2 companion.
+This port retargets the CUDA build from Ada `sm_89` to Blackwell `sm_120a`.
+
+Artifact: `roofkid/Qwen3.8-27B-GSQ3-NInfer/qwen3_8_27b_gsq3.ninfer`
+
+SHA-256: `c6f27073393e5bcc629489420470d71f52a27553bfc5c360fef07a25b3b550d7`
+
+Upstream performance numbers are RTX 4080 measurements; RTX 5080 results must
+be measured separately on real hardware.
+""")
+          PY
+
+      - name: Commit imported tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "feat: import GSQ3 runtime and retarget to RTX 5080 sm_120a"
+          git push origin HEAD:main
