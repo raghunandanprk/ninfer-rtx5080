@@ -1,0 +1,5 @@
+engine/
+models/
+build/
+build-windows/
+*.ninfer
