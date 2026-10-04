@@ -45,33 +45,33 @@ MTP_SOURCE_NAMES = {
     "mtp/input_projection": "blk.64.nextn.eh_proj.weight",
     "mtp/embedding_norm": "blk.64.nextn.enorm.weight",
     "mtp/hidden_norm": "blk.64.nextn.hnorm.weight",
-    "mtp/layer/input_norm": "blk.64.attn_norm.weight",
-    "mtp/layer/attention/query_norm": "blk.64.attn_q_norm.weight",
-    "mtp/layer/attention/key_norm": "blk.64.attn_k_norm.weight",
-    "mtp/layer/attention/output": "blk.64.attn_output.weight",
-    "mtp/layer/post_attention_norm": "blk.64.ffn_norm.weight",
-    "mtp/layer/mlp/down": "blk.64.ffn_down.weight",
+    "mtp/layer/input_norm": "blk.64.nextn.attn_norm.weight",
+    "mtp/layer/attention/query_norm": "blk.64.nextn.attn_q_norm.weight",
+    "mtp/layer/attention/key_norm": "blk.64.nextn.attn_k_norm.weight",
+    "mtp/layer/attention/output": "blk.64.nextn.attn_output.weight",
+    "mtp/layer/post_attention_norm": "blk.64.nextn.ffn_norm.weight",
+    "mtp/layer/mlp/down": "blk.64.nextn.ffn_down.weight",
     "mtp/final_norm": "blk.64.nextn.shared_head_norm.weight",
 }
 
 MTP_MATRIX_SOURCES = (
     "blk.64.nextn.eh_proj.weight",
-    "blk.64.attn_q.weight",
-    "blk.64.attn_k.weight",
-    "blk.64.attn_v.weight",
-    "blk.64.attn_output.weight",
-    "blk.64.ffn_gate.weight",
-    "blk.64.ffn_up.weight",
-    "blk.64.ffn_down.weight",
+    "blk.64.nextn.attn_q.weight",
+    "blk.64.nextn.attn_k.weight",
+    "blk.64.nextn.attn_v.weight",
+    "blk.64.nextn.attn_output.weight",
+    "blk.64.nextn.ffn_gate.weight",
+    "blk.64.nextn.ffn_up.weight",
+    "blk.64.nextn.ffn_down.weight",
 )
 
 MTP_VECTOR_SOURCES = (
     "blk.64.nextn.enorm.weight",
     "blk.64.nextn.hnorm.weight",
-    "blk.64.attn_norm.weight",
-    "blk.64.attn_q_norm.weight",
-    "blk.64.attn_k_norm.weight",
-    "blk.64.ffn_norm.weight",
+    "blk.64.nextn.attn_norm.weight",
+    "blk.64.nextn.attn_q_norm.weight",
+    "blk.64.nextn.attn_k_norm.weight",
+    "blk.64.nextn.ffn_norm.weight",
     "blk.64.nextn.shared_head_norm.weight",
 )
 
@@ -172,15 +172,15 @@ def _raw_tensor(source: GgufSource, name: str) -> torch.Tensor:
 def _mtp_tensor(source: GgufSource, object_name: str) -> torch.Tensor:
     if object_name == "mtp/layer/attention/query_key_gate_value":
         query_rows, gate_rows = attention_indices()
-        q = source.matrix("blk.64.attn_q.weight")
-        k = source.matrix("blk.64.attn_k.weight")
-        v = source.matrix("blk.64.attn_v.weight")
+        q = source.matrix("blk.64.nextn.attn_q.weight")
+        k = source.matrix("blk.64.nextn.attn_k.weight")
+        v = source.matrix("blk.64.nextn.attn_v.weight")
         return torch.cat((q[list(query_rows)], k, q[list(gate_rows)], v), dim=0)
     if object_name == "mtp/layer/mlp/gate_up":
         return torch.cat(
             (
-                source.matrix("blk.64.ffn_gate.weight"),
-                source.matrix("blk.64.ffn_up.weight"),
+                source.matrix("blk.64.nextn.ffn_gate.weight"),
+                source.matrix("blk.64.nextn.ffn_up.weight"),
             ),
             dim=0,
         )
