@@ -30,7 +30,8 @@ function Import-VsEnvironment {
         throw "Visual Studio Installer/vswhere.exe not found. Install Visual Studio 2022 Build Tools with Desktop development with C++."
     }
 
-    $vsRoot = (& $vswhere -latest -products * -version "[17.0,18.0)" -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
+    $vsRaw = & $vswhere -latest -products * -version "[17.0,18.0)" -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    $vsRoot = if ($vsRaw) { ([string]$vsRaw).Trim() } else { "" }
     if (-not $vsRoot) {
         throw "Visual Studio 2022 C++ toolchain not found. Install Desktop development with C++."
     }
