@@ -1,4 +1,121 @@
-# NInfer RTX 5080 GSQ3
+# NInfer RTX 5080 · RentedNoodle GSQ/RCO v3
+
+> **Current default:** Ryan-gsq NInfer v3 preserved-block pipeline.  
+> The older roofkid Q3/Q4/Q5 requantization path is retained only as a legacy fallback.
+
+This project now targets:
+
+- **RentedNoodle OrcaRouter Qwen3.8-27B IQ3_XXS v2.1**
+- original mixed GSQ/RCO GGUF blocks preserved byte-for-byte where supported
+- embedded RentedNoodle MTP head preserved
+- **RentedNoodle BF16 mmproj Vision** imported through NInfer's verified Qwen3.8 vision mapping
+- NInfer v3 proposal head
+- Ryan-gsq **Native SM120a Windows runtime**
+- RTX 5080 / 5070 Ti / 5090
+- no Docker or WSL in the default path
+
+## Recommended workflow
+
+### 1. Update this repository
+
+```powershell
+git pull
+```
+
+### 2. Download and convert RentedNoodle
+
+```powershell
+.\scripts\download-rentednoodle-v3.ps1
+.\scripts\convert-rentednoodle-v3.ps1
+```
+
+The converter is pinned to Ryan-gsq NInfer commit
+`b06908ba3caa4f73269274fc7984b96f16d4295c` and uses:
+
+```text
+recipe:      qwen3_8_27b_gguf
+components:  text,vision,mtp
+text source: RentedNoodle GSQ/RCO GGUF
+vision:      RentedNoodle BF16 mmproj
+proposal:    enabled
+device:      CPU
+```
+
+The language/MTP GSQ/RCO blocks are imported rather than dequantized and re-quantized.
+
+### 3. Install the precompiled Windows engine once
+
+Ryan-gsq distributes the validated Windows package from the download link in their repository.
+After extracting it:
+
+```powershell
+.\scripts\install-prebuilt-v3-runtime.ps1 -PackageRoot "C:\path\to\extracted\qwen27b"
+```
+
+Only the package's `engine\` directory is copied into this project.
+
+### 4. Run
+
+```powershell
+.\scripts\run-rentednoodle.ps1
+```
+
+The normal command now selects the v3 pipeline automatically.
+
+Defaults:
+
+```text
+Vision:          ON
+Context:         98,304 tokens
+KV:              rk8v4
+Prefill chunk:   1024
+MTP:             adaptive, max 4 drafts
+Host cache:      1024 MiB
+Concurrency:     1
+API:             http://127.0.0.1:8080/v1
+```
+
+For text-only:
+
+```powershell
+$env:NINFER_VISION="0"
+.\scripts\run-rentednoodle.ps1
+```
+
+Text-only defaults to 131,072 context and the engine's strict dedicated-VRAM policy.
+
+Useful overrides:
+
+```powershell
+$env:NINFER_CONTEXT="102400"
+$env:NINFER_KV_DTYPE="rk4v4-e8"
+$env:NINFER_HOST_CACHE_MIB="512"
+$env:NINFER_PORT="8100"
+.\scripts\run-rentednoodle.ps1
+```
+
+## Legacy pipeline
+
+The previous custom converter remains available for comparison only:
+
+```powershell
+$env:NINFER_PIPELINE="legacy"
+.\scripts\run-rentednoodle.ps1
+```
+
+Docker/WSL legacy fallback:
+
+```powershell
+$env:NINFER_PIPELINE="legacy-docker"
+.\scripts\run-rentednoodle.ps1
+```
+
+See [docs/V3_PIVOT.md](docs/V3_PIVOT.md) for architecture and provenance details.
+
+---
+
+## Legacy development history
+
 
 Blackwell (`sm_120a`) bring-up for **Qwen3.8-27B GSQ3 on 16 GB RTX 5080 / RTX 5070 Ti**.
 
