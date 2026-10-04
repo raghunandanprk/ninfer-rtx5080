@@ -1,0 +1,72 @@
+name: Build prebuilt SM120a engine
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-prebuilt-engine.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install CUDA Toolkit 13.3.1
+        shell: powershell
+        run: |
+          choco install cuda --version=13.3.1 -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "CUDA install failed" }
+
+          $cuda = Get-ChildItem "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA" -Directory -Filter "v13.*" |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+
+          if (-not $cuda) { throw "CUDA 13.x directory not found after installation" }
+
+          "NINFER_CUDA_ROOT=$($cuda.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CUDA_PATH=$($cuda.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "$($cuda.FullName)\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+          & "$($cuda.FullName)\bin\nvcc.exe" --version
+          & "$($cuda.FullName)\bin\nvprune.exe" --version
+
+      - name: Build standalone NInfer engine
+        shell: powershell
+        run: |
+          .\scripts\build-ryan-engine.ps1 -Fresh -Jobs 4
+
+      - name: Inspect packaged runtime
+        shell: powershell
+        run: |
+          $engine = "runtime-v3\engine"
+          if (-not (Test-Path "$engine\ninfer-serve.exe")) {
+            throw "ninfer-serve.exe was not produced"
+          }
+
+          Get-ChildItem $engine | Select-Object Name, Length
+          Get-Content "$engine\build-manifest.json"
+
+      - name: Create ZIP
+        shell: powershell
+        run: |
+          $zip = "ninfer-sm120a-engine.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path "runtime-v3\engine\*" -DestinationPath $zip -CompressionLevel Optimal
+          Get-FileHash $zip -Algorithm SHA256 | Format-List
+
+      - name: Upload prebuilt engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: ninfer-sm120a-engine
+          path: ninfer-sm120a-engine.zip
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
