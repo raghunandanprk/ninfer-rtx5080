@@ -32,8 +32,25 @@ function Import-VsEnvironment {
 
     $vsRaw = & $vswhere -latest -products * -version "[17.0,18.0)" -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
     $vsRoot = if ($vsRaw) { ([string]$vsRaw).Trim() } else { "" }
+
     if (-not $vsRoot) {
-        throw "Visual Studio 2022 C++ toolchain not found. Install Desktop development with C++."
+        Write-Warning "vswhere did not report the VC.Tools component; checking standard VS2022 install paths."
+        $knownRoots = @(
+            "C:\Program Files\Microsoft Visual Studio\2022\Enterprise",
+            "C:\Program Files\Microsoft Visual Studio\2022\Professional",
+            "C:\Program Files\Microsoft Visual Studio\2022\Community",
+            "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"
+        )
+        foreach ($candidate in $knownRoots) {
+            if (Test-Path (Join-Path $candidate "VC\Auxiliary\Build\vcvars64.bat")) {
+                $vsRoot = $candidate
+                break
+            }
+        }
+    }
+
+    if (-not $vsRoot) {
+        throw "Visual Studio 2022 x64 C++ environment was not found via vswhere or standard install paths."
     }
 
     $vcvars = Join-Path $vsRoot "VC\Auxiliary\Build\vcvars64.bat"
