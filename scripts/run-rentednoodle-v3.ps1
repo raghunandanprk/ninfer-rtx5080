@@ -8,15 +8,11 @@ if (-not (Test-Path $Artifact)) {
     & (Join-Path $Root "scripts\convert-rentednoodle-v3.ps1")
 }
 if (-not (Test-Path $Exe)) {
-    throw @"
-Precompiled NInfer v3 runtime is not installed.
-Download and extract the Ryan-gsq Windows package, then run:
-
-  .\scripts\install-prebuilt-v3-runtime.ps1 -PackageRoot "C:\path\to\extracted\qwen27b"
-
-Ryan-gsq package page:
-  https://github.com/Ryan-gsq/ninfer-16g-5070ti-5080-5090-qwen3.8-27b-gsq-rco
-"@
+    Write-Host "Native Ryan-gsq SM120a runtime is missing; building it now."
+    & (Join-Path $Root "scripts\build-ryan-engine.ps1")
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $Exe)) {
+        throw "Native Ryan-gsq engine build did not produce $Exe"
+    }
 }
 
 $Artifact = (Resolve-Path $Artifact).Path
