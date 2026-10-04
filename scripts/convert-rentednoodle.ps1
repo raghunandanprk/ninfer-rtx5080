@@ -2,17 +2,25 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $Engine = Join-Path $Root "engine"
-$Overlay = Join-Path $Root "overlays\\convert_rentednoodle.py"
-$OverlayDest = Join-Path $Engine "tools\\convert\\qwen3_8_27b\\convert_rentednoodle.py"
+$Overlay = Join-Path $Root "overlays\convert_rentednoodle.py"
+$OverlayDest = Join-Path $Engine "tools\convert\qwen3_8_27b\convert_rentednoodle.py"
 $Source = Join-Path $Root "models\rentednoodle\Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.0.gguf"
 $Donor = Join-Path $Root "models\qwen3_8_27b_gsq3.ninfer"
+$Mmproj = Join-Path $Root "models\rentednoodle\mmproj\mmproj-Qwen3.8-27B-BF16.gguf"
+$Frontend = Join-Path $Root "models\rentednoodle"
 $OutDir = Join-Path $Root "models\rentednoodle"
 $Output = Join-Path $OutDir "qwen3_8_27b_orcarouter_rentednoodle_gsqrco_iq3xxs.ninfer"
 
-if (-not (Test-Path (Join-Path $Engine "tools\convert\qwen3_8_27b\convert_rentednoodle.py"))) {
+if (-not (Test-Path (Join-Path $Engine "CMakeLists.txt"))) {
     & (Join-Path $Root "scripts\bootstrap-source.ps1")
 }
-if (-not (Test-Path $Source)) {
+
+# Always refresh the project overlay after git pull, even when engine/ already exists.
+if (-not (Test-Path $Overlay)) { throw "Missing converter overlay: $Overlay" }
+Copy-Item $Overlay $OverlayDest -Force
+Write-Host "Refreshed converter overlay: $OverlayDest"
+
+if (-not (Test-Path $Source) -or -not (Test-Path $Mmproj)) {
     & (Join-Path $Root "scripts\download-rentednoodle.ps1")
 }
 if (-not (Test-Path $Donor)) {
