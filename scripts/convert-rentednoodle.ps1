@@ -2,6 +2,8 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $Engine = Join-Path $Root "engine"
+$Overlay = Join-Path $Root "overlays\\convert_rentednoodle.py"
+$OverlayDest = Join-Path $Engine "tools\\convert\\qwen3_8_27b\\convert_rentednoodle.py"
 $Source = Join-Path $Root "models\rentednoodle\Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-v2.0.gguf"
 $Donor = Join-Path $Root "models\qwen3_8_27b_gsq3.ninfer"
 $OutDir = Join-Path $Root "models\rentednoodle"
