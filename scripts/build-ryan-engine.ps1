@@ -97,9 +97,14 @@ function Import-VsEnvironment {
         throw "ninja.exe not found. Install Visual Studio C++ CMake tools or Ninja separately."
     }
 
+    # CMake/nvcc on hosted Windows runners can mangle a fully-qualified cl.exe
+    # path containing spaces when it is forwarded through -ccbin. Since vcvars64
+    # already placed the selected host compiler on PATH, use the bare executable
+    # name for CUDA host compilation.
     return [pscustomobject]@{
         Root = $vsRoot
         Cl = $cl
+        CudaHostCompiler = "cl.exe"
         Toolset = $env:VCToolsVersion
     }
 }
@@ -221,9 +226,9 @@ $configureArgs = @(
     "-DNINFER_D3D12_RESIDENCY=OFF",
     "-DCUDAToolkit_ROOT=$cudaRoot",
     "-DCMAKE_CUDA_COMPILER=$nvcc",
-    "-DCMAKE_CUDA_HOST_COMPILER=$($vs.Cl)",
-    "-DCMAKE_C_COMPILER=$($vs.Cl)",
-    "-DCMAKE_CXX_COMPILER=$($vs.Cl)"
+    "-DCMAKE_CUDA_HOST_COMPILER=$($vs.CudaHostCompiler)",
+    "-DCMAKE_C_COMPILER=$($vs.Cl.Replace('\','/'))",
+    "-DCMAKE_CXX_COMPILER=$($vs.Cl.Replace('\','/'))"
 )
 
 Write-Host "Configuring CMake + vcpkg..."
