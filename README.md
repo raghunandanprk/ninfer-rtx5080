@@ -87,6 +87,23 @@ The optional workflow under `.github/workflows/import-upstream.yml` can be used 
 
 Apache-2.0 upstream licensing applies to the imported runtime and model components as documented by their respective projects.
 
+## Native Windows (recommended on 16 GB + 32 GB RAM)
+
+Docker/WSL is no longer required for the RentedNoodle path. Native Windows is the default:
+
+```powershell
+git pull
+.\scripts\build-native-windows.ps1
+.\scripts\run-rentednoodle.ps1
+```
+
+The native runner caps Host-KV at 512 MiB instead of NInfer's 8192 MiB server default and avoids
+the Docker Desktop / WSL2 VM memory overhead. Set `NINFER_RUNTIME=docker` only when you explicitly
+want the Docker fallback.
+
+See [docs/NATIVE_WINDOWS.md](docs/NATIVE_WINDOWS.md) for prerequisites, RAM-conscious settings,
+Vision/text context profiles and overrides.
+
 ## RentedNoodle uncensored GSQ/RCO build
 
 The repo now includes a dedicated converter for:
