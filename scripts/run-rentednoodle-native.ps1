@@ -48,7 +48,6 @@ $Args = @(
     "--spec","mtp",
     "--draft-tokens","3",
     "--lm-head-draft",
-    "--embedding-host",
     "--preserve-thinking"
 )
 
