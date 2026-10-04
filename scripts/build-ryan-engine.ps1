@@ -178,11 +178,11 @@ New-Item -ItemType Directory -Force (Split-Path -Parent $Build) | Out-Null
 
 if (-not (Test-Path (Join-Path $Vcpkg ".git"))) {
     Write-Host "Cloning vcpkg..."
-    Invoke-Checked git clone https://github.com/microsoft/vcpkg.git $Vcpkg
+    Invoke-Checked -FilePath git -Arguments @("clone","https://github.com/microsoft/vcpkg.git",$Vcpkg)
 }
 $vcpkgExe = Join-Path $Vcpkg "vcpkg.exe"
 if (-not (Test-Path $vcpkgExe)) {
-    Invoke-Checked (Join-Path $Vcpkg "bootstrap-vcpkg.bat") -disableMetrics
+    Invoke-Checked -FilePath (Join-Path $Vcpkg "bootstrap-vcpkg.bat") -Arguments @("-disableMetrics")
 }
 $toolchain = Join-Path $Vcpkg "scripts\buildsystems\vcpkg.cmake"
 
@@ -209,10 +209,10 @@ $configureArgs = @(
 )
 
 Write-Host "Configuring CMake + vcpkg..."
-Invoke-Checked cmake.exe @configureArgs
+Invoke-Checked -FilePath "cmake.exe" -Arguments $configureArgs
 
 Write-Host "Building CUDA operators..."
-Invoke-Checked cmake.exe --build $Build --target ninfer_ops -j $Jobs
+Invoke-Checked -FilePath "cmake.exe" -Arguments @("--build",$Build,"--target","ninfer_ops","-j","$Jobs")
 
 $opsArchive = Join-Path $Build "src\ops\ninfer_ops.lib"
 $prunedArchive = Join-Path $Build "src\ops\ninfer_ops.native.lib"
@@ -226,11 +226,11 @@ Copy-Item $opsArchive (Join-Path $backupRoot $backupName)
 
 if (Test-Path $prunedArchive) { Remove-Item $prunedArchive -Force }
 Write-Host "Pruning redundant PTX; retaining sm_120a SASS..."
-Invoke-Checked $nvprune -arch sm_120a $opsArchive -o $prunedArchive
+Invoke-Checked -FilePath $nvprune -Arguments @("-arch","sm_120a",$opsArchive,"-o",$prunedArchive)
 Copy-Item $prunedArchive $opsArchive -Force
 
 Write-Host "Linking ninfer-serve.exe..."
-Invoke-Checked cmake.exe --build $Build --target ninfer-serve -j $Jobs
+Invoke-Checked -FilePath "cmake.exe" -Arguments @("--build",$Build,"--target","ninfer-serve","-j","$Jobs")
 
 $builtExe = Join-Path $Build "apps\ninfer-serve.exe"
 if (-not (Test-Path $builtExe)) {
