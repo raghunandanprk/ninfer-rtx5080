@@ -3,3 +3,6 @@ models/
 build/
 build-windows/
 *.ninfer
+
+.deps/
+engine/build-windows/
