@@ -43,16 +43,28 @@ device:      CPU
 
 The language/MTP GSQ/RCO blocks are imported rather than dequantized and re-quantized.
 
-### 3. Install the precompiled Windows engine once
+### 3. Build the native Windows engine once
 
-Ryan-gsq distributes the validated Windows package from the download link in their repository.
-After extracting it:
+Quark is no longer part of the recommended path:
+
+```powershell
+.\scripts\build-ryan-engine.ps1
+```
+
+This builds Ryan-gsq NInfer v3 as Release `sm_120a`, prunes redundant PTX before linking,
+and assembles a standalone `runtime-v3\engine` directory containing `ninfer-serve.exe`
+and all required runtime DLLs.
+
+The script prefers Ryan's validated CUDA 13.4 setup but will attempt your existing CUDA 13.0
+installation first. CUDA 13.4.2 can be installed side-by-side if 13.0 proves insufficient.
+
+See [docs/BUILD_RYAN_ENGINE.md](docs/BUILD_RYAN_ENGINE.md).
+
+The old Quark package importer remains optional if you ever obtain the package:
 
 ```powershell
 .\scripts\install-prebuilt-v3-runtime.ps1 -PackageRoot "C:\path\to\extracted\qwen27b"
 ```
-
-Only the package's `engine\` directory is copied into this project.
 
 ### 4. Run
 
@@ -60,7 +72,8 @@ Only the package's `engine\` directory is copied into this project.
 .\scripts\run-rentednoodle.ps1
 ```
 
-The normal command now selects the v3 pipeline automatically.
+The normal command now selects the v3 pipeline automatically. If `runtime-v3\engine\ninfer-serve.exe`
+does not exist yet, it automatically invokes `build-ryan-engine.ps1`.
 
 Defaults:
 
