@@ -248,11 +248,26 @@ c6f27073393e5bcc629489420470d71f52a27553bfc5c360fef07a25b3b550d7
 
 `download-model.ps1` verifies the hash before use.
 
-## Upstream reference numbers
+## Verified RTX 5080 Laptop benchmark results
 
-The RTX 4080 fork reports up to roughly 2.7K tok/s prefill and 262 tok/s DFlash2 decode on its benchmark sweep, with about 100K context on a 16 GB card. Those are **reference measurements only**. This repo will not call them RTX 5080 results until the same tests are run on actual Blackwell hardware.
+Blackwell (`sm_120a`) hardware benchmarks have been measured and verified directly on the 16 GB RTX 5080 Laptop (175W, Intel Core Ultra 9 275HX, Windows 11) using the native NInfer v3 engine:
 
-See [`PORTING_STATUS.md`](PORTING_STATUS.md) for the validation checklist.
+| Benchmark / Workload | Configuration | Verified Context | Decode Speed | Validation Outcome |
+| :--- | :--- | :---: | :---: | :--- |
+| **Max Context (Research/Coding)** | MTP3, `rk4v4`, no head | **231,424 (226K)** | 100.5 tok/s (short)<br>80.2 tok/s @ 99K<br>60.5 tok/s @ 229K | **100% Pass** (all 3 needle codes retrieved at 229K depth) |
+| **High Context (Slightly faster)** | MTP3 + `--lm-head-draft`, `rk4v4` | **212,992 (208K)** | 104.3 tok/s (short)<br>82.0 tok/s @ 99K<br>63.5 tok/s @ 211K | **100% Pass** (15,714 MiB peak VRAM) |
+| **Fast Chat (Short-to-Medium)** | DFlash2 K=5 + head, `rk4v4` | **121,856 (119K)** | **118.9 tok/s** (short)<br>69.1 tok/s @ 99K | **100% Pass** (K=5 measured optimal on SM120a vs upstream K=7) |
+| **Multimodal Vision (Resident)** | MTP3, `rk4v4`, Vision in VRAM | **147,456 (144K)** | 93.0 tok/s | ~1.4s encode / first token |
+| **Video Reasoning (RAM Overlay)**| MTP3, `rk4v4`, Video RAM overlay | **169,984 (166K)** | 93.0 tok/s | 4 fps temporal downsample |
+
+### Key Blackwell SM120a Findings vs Upstream RTX 4080:
+- **Maximum Context expanded from 100K to 231K**: Using `rk4v4` KV and MTP3, the RTX 5080 holds 231,424 tokens within dedicated VRAM (15,706 MiB), more than 2.3× the upstream 100K target.
+- **DFlash2 Tuning**: On Blackwell, DFlash2 speculative decoding peaks at **K=5** (118.9 tok/s), whereas upstream Ada/Ampere used K=7 (which drops to 102 tok/s on SM120a).
+- **Long-Context Crossover**: DFlash2 is fastest on short chats (<30K tokens), but MTP3 sustains significantly higher acceptance rates at deep context (0.50–0.59 vs 0.35–0.38), making MTP3 15–20% faster at 99K+ depth.
+- **Prefix Cache Reuse**: Follow-up conversational turns achieve TTFT of 0.38–0.68 seconds by reusing up to 229K cached tokens.
+
+See [`inf-cmd/benchmark-summary.md`](inf-cmd/benchmark-summary.md) for the full tuning dataset and bisection logs.
+See [`PORTING_STATUS.md`](PORTING_STATUS.md) for the porting validation report.
 
 ## Source strategy
 
