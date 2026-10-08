@@ -1,7 +1,8 @@
 param(
     [string]$Destination = "",
-    [string]$Repo = "2beng2/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer",
-    [string]$Revision = "main"
+    [string]$Repo = "raghualgt/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer",
+    [string]$Revision = "main",
+    [ValidateSet("all", "text", "mtp", "dflash2", "vision")][string]$Variant = "all"
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,9 +27,33 @@ if ($Repo -eq "2beng2/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer" -and $Revis
     $Revision = "d19429861f973f87c6331af120470d22942430ca"
 }
 
-$Files = [ordered]@{
+$AllAvailable = [ordered]@{
     "qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer" = "947d2c5197d72518eb1a749e7d24b22582249880f6437c76b7c1289ef8a72b08"
     "qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer" = "a2cf5282288289d62dfd19f2a736909c06c809ed5c476e7435e82ff7b80344ed"
+    "qwen3.8-27b-orcarouter-iq3-xxs-vision-mtp.ninfer" = "63aa158c9f749088a4cab31b953ef6179d58cabce73e1ff389c15fd262086b07"
+}
+
+$Files = [ordered]@{}
+if ($Variant -eq "all") {
+    if ($Repo -eq "2beng2/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer") {
+        # 2beng2 repo does not host the vision artifact
+        $Files["qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer"]
+        $Files["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"]
+    } else {
+        foreach ($k in $AllAvailable.Keys) { $Files[$k] = $AllAvailable[$k] }
+    }
+} elseif ($Variant -eq "text") {
+    $Files["qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer"]
+    $Files["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"]
+} elseif ($Variant -eq "mtp") {
+    $Files["qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer"]
+} elseif ($Variant -eq "dflash2") {
+    $Files["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"]
+} elseif ($Variant -eq "vision") {
+    if ($Repo -eq "2beng2/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer") {
+        throw "The vision artifact is only available in 'raghualgt/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer'."
+    }
+    $Files["qwen3.8-27b-orcarouter-iq3-xxs-vision-mtp.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-vision-mtp.ninfer"]
 }
 $env:HF_HUB_CACHE = Join-Path $Root ".deps\hf-cache"
 $env:HF_HUB_DISABLE_SYMLINKS_WARNING = "1"
@@ -70,4 +95,4 @@ foreach ($Name in $Files.Keys) {
     downloaded_utc = [DateTime]::UtcNow.ToString("o")
     artifacts = $Checks
 } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $Destination "download-manifest.json") -Encoding UTF8
-Write-Host "Both compatible native v3 artifacts are verified in $Destination"
+Write-Host "Compatible native v3 artifacts ($($Files.Count) file(s)) are verified in $Destination"

@@ -26,13 +26,20 @@ git pull
 
 #### Option A: Download verified quants directly (Fastest)
 
-Download pre-converted, verified SM120a compatible artifacts:
+Download pre-converted, verified SM120a compatible artifacts from Hugging Face ([`raghualgt/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer`](https://huggingface.co/raghualgt/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer)):
 
 ```powershell
+# Downloads all verified artifacts (Text MTP, DFlash2, and Vision)
 .\scripts\download-ryan-compatible-models.ps1
+
+# Or download only text models (no vision)
+.\scripts\download-ryan-compatible-models.ps1 -Variant text
 ```
 
-Downloads `qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer` and `qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer` into `models\rentednoodle-native-v3\`.
+Artifacts downloaded into `models\rentednoodle-native-v3\`:
+- `qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer` (10.06 GiB · Coding/Research/Long-context)
+- `qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer` (12.13 GiB · Fast Chat ~117 tok/s)
+- `qwen3.8-27b-orcarouter-iq3-xxs-vision-mtp.ninfer` (10.33 GiB · Image/Video Multimodal)
 
 #### Option B: Download and convert from GGUF
 
