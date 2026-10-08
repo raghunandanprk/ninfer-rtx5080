@@ -11,10 +11,18 @@ if (-not (Test-Path (Join-Path $Source ".git"))) {
     git clone --filter=blob:none --no-checkout $Repo $Source
     if ($LASTEXITCODE -ne 0) { throw "Failed to clone Ryan-gsq NInfer v3 source." }
 }
-git -C $Source fetch origin $Commit --depth 1
-if ($LASTEXITCODE -ne 0) { throw "Failed to fetch pinned NInfer v3 commit." }
-git -C $Source checkout --force $Commit
-if ($LASTEXITCODE -ne 0) { throw "Failed to checkout pinned NInfer v3 commit." }
+git -C $Source cat-file -e "$Commit^{commit}" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    git -C $Source fetch origin $Commit --depth 1
+    if ($LASTEXITCODE -ne 0) { throw "Failed to fetch pinned NInfer v3 commit." }
+}
+$currentCommit = git -C $Source rev-parse --verify HEAD 2>$null
+if ($currentCommit -ne $Commit) {
+    $localChanges = git -C $Source status --porcelain
+    if ($localChanges) { throw "NInfer source has local changes at another revision; preserve them before switching to $Commit." }
+    git -C $Source checkout --detach $Commit
+    if ($LASTEXITCODE -ne 0) { throw "Failed to checkout pinned NInfer v3 commit." }
+}
 
 if (-not (Test-Path (Join-Path $Source "tools\convert\gguf_blocks.py"))) {
     throw "Pinned source does not contain the GSQ/RCO block-preserving converter."

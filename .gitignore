@@ -8,3 +8,14 @@ build-windows/
 engine/build-windows/
 
 runtime-v3/
+
+# Local build and package archives
+*.zip
+
+# Local testing and environment state
+.kilo/
+vision-test/
+benchmark-results/
+__pycache__/
+*.py[cod]
+*.log

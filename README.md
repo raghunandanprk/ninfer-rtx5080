@@ -22,7 +22,19 @@ This project now targets:
 git pull
 ```
 
-### 2. Download and convert RentedNoodle
+### 2. Obtain the model artifacts
+
+#### Option A: Download verified quants directly (Fastest)
+
+Download pre-converted, verified SM120a compatible artifacts:
+
+```powershell
+.\scripts\download-ryan-compatible-models.ps1
+```
+
+Downloads `qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer` and `qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer` into `models\rentednoodle-native-v3\`.
+
+#### Option B: Download and convert from GGUF
 
 ```powershell
 .\scripts\download-rentednoodle-v3.ps1
@@ -43,9 +55,37 @@ device:      CPU
 
 The language/MTP GSQ/RCO blocks are imported rather than dequantized and re-quantized.
 
-### 3. Build the native Windows engine once
+### 3. Get the native Windows engine
 
-Quark is no longer part of the recommended path:
+> [!NOTE]
+> **Why `runtime-v3/` is not tracked directly in git:**  
+> The compiled Blackwell engine directory `runtime-v3\engine\` is ~1.62 GB uncompressed (`ninfer-serve.exe` is ~1.05 GB; `cublasLt64_13.dll` is ~493 MB), which exceeds GitHub's 100 MB per-file push limit. To avoid repository bloat and bandwidth constraints, the standalone engine is packaged and hosted as a public release asset.
+
+#### Option A: Install prebuilt standalone engine (Recommended · No compiler needed)
+
+The prebuilt Blackwell `sm_120a` engine package is available publicly for everyone:
+
+- **Direct Download Link:** [`ninfer-sm120a-engine.zip`](https://github.com/raghunandanprk/ninfer-rtx5080/releases/download/v0.3.0/ninfer-sm120a-engine.zip) (~943 MB compressed, 1.62 GB extracted)
+- **Release Information:** [GitHub Release v0.3.0](https://github.com/raghunandanprk/ninfer-rtx5080/releases/tag/v0.3.0)
+- **SHA-256 Checksum:** `beb24ea5b627328708309d32490a6c1d745c6dc9d1dec7bf8481fed7ab9adb4e`
+- **Included in package:** Standalone compiled `ninfer-serve.exe` (SM120a / Blackwell optimized) and full dynamic runtime dependencies (`cublas64_13.dll`, `cublasLt64_13.dll`, `cudart64_13.dll`, `msvcp140.dll`, `vcruntime140.dll`, etc.). No CUDA toolkit or Visual Studio C++ installation is required.
+
+**Automated 1-command install:**
+
+```powershell
+.\scripts\install-prebuilt-v3-runtime.ps1
+```
+
+*(This automatically downloads `ninfer-sm120a-engine.zip` from Release v0.3.0, verifies it, and extracts it directly into `runtime-v3\engine\`.)*
+
+**Manual install:**
+1. Download [`ninfer-sm120a-engine.zip`](https://github.com/raghunandanprk/ninfer-rtx5080/releases/download/v0.3.0/ninfer-sm120a-engine.zip).
+2. Extract the archive contents into `runtime-v3\engine\`.
+3. Confirm that `runtime-v3\engine\ninfer-serve.exe` is present.
+
+#### Option B: Build from source locally
+
+If you have Visual Studio 2022 C++ and CUDA Toolkit 13.x installed and wish to compile locally:
 
 ```powershell
 .\scripts\build-ryan-engine.ps1
@@ -55,16 +95,7 @@ This builds Ryan-gsq NInfer v3 as Release `sm_120a`, prunes redundant PTX before
 and assembles a standalone `runtime-v3\engine` directory containing `ninfer-serve.exe`
 and all required runtime DLLs.
 
-The script prefers Ryan's validated CUDA 13.4 setup but will attempt your existing CUDA 13.0
-installation first. CUDA 13.4.2 can be installed side-by-side if 13.0 proves insufficient.
-
 See [docs/BUILD_RYAN_ENGINE.md](docs/BUILD_RYAN_ENGINE.md).
-
-The old Quark package importer remains optional if you ever obtain the package:
-
-```powershell
-.\scripts\install-prebuilt-v3-runtime.ps1 -PackageRoot "C:\path\to\extracted\qwen27b"
-```
 
 ### 4. Run
 
@@ -73,7 +104,7 @@ The old Quark package importer remains optional if you ever obtain the package:
 ```
 
 The normal command now selects the v3 pipeline automatically. If `runtime-v3\engine\ninfer-serve.exe`
-does not exist yet, it automatically invokes `build-ryan-engine.ps1`.
+does not exist yet, run `.\scripts\install-prebuilt-v3-runtime.ps1`.
 
 Defaults:
 
@@ -106,6 +137,20 @@ $env:NINFER_HOST_CACHE_MIB="512"
 $env:NINFER_PORT="8100"
 .\scripts\run-rentednoodle.ps1
 ```
+
+### 5. Workload-specific launchers (`inf-cmd/`)
+
+Pre-tuned launchers calibrated on the 16 GB RTX 5080 Laptop for maximum context and decode throughput:
+
+| Workload | Command | Port | Model / Speculation | Context | Benchmark Speed |
+| :--- | :--- | :---: | :--- | :---: | :---: |
+| **Chat** | `.\inf-cmd\chat.ps1` | 8091 | DFlash2 K=5 | 121,856 | ~117 tok/s (short) |
+| **Coding** | `.\inf-cmd\coding.ps1` | 8092 | MTP3 + n-gram | 229,376 | ~100 tok/s |
+| **Research** | `.\inf-cmd\research.ps1` | 8093 | MTP3 | 231,424 | 80 tok/s @ 99K depth |
+| **Image** | `.\inf-cmd\image.ps1` | 8094 | Vision (VRAM-resident) | 147,456 | ~1.4s encode |
+| **Video** | `.\inf-cmd\video.ps1` | 8095 | Vision (RAM overlay) | 169,984 | 4 fps downsample |
+
+Each launcher manages port binding, memory policies, spec draft depths, and reasoning parameters automatically. See [inf-cmd/user-guide.md](inf-cmd/user-guide.md) for full documentation.
 
 ## Legacy pipeline
 
