@@ -23,10 +23,6 @@ $Python = if (Test-Path (Join-Path $Root ".deps\build-venv\Scripts\python.exe"))
 $HfCmd = Get-Command hf.exe -ErrorAction SilentlyContinue
 $Hf = if ($HfCmd) { $HfCmd.Source } else { "" }
 
-if ($Repo -eq "2beng2/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer" -and $Revision -eq "main") {
-    $Revision = "d19429861f973f87c6331af120470d22942430ca"
-}
-
 $AllAvailable = [ordered]@{
     "qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer" = "947d2c5197d72518eb1a749e7d24b22582249880f6437c76b7c1289ef8a72b08"
     "qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer" = "a2cf5282288289d62dfd19f2a736909c06c809ed5c476e7435e82ff7b80344ed"
@@ -35,13 +31,7 @@ $AllAvailable = [ordered]@{
 
 $Files = [ordered]@{}
 if ($Variant -eq "all") {
-    if ($Repo -eq "2beng2/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer") {
-        # 2beng2 repo does not host the vision artifact
-        $Files["qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer"]
-        $Files["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"]
-    } else {
-        foreach ($k in $AllAvailable.Keys) { $Files[$k] = $AllAvailable[$k] }
-    }
+    foreach ($k in $AllAvailable.Keys) { $Files[$k] = $AllAvailable[$k] }
 } elseif ($Variant -eq "text") {
     $Files["qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-mtp-only.ninfer"]
     $Files["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"]
@@ -50,9 +40,6 @@ if ($Variant -eq "all") {
 } elseif ($Variant -eq "dflash2") {
     $Files["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-mtp-dflash2.ninfer"]
 } elseif ($Variant -eq "vision") {
-    if ($Repo -eq "2beng2/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer") {
-        throw "The vision artifact is only available in 'raghualgt/Qwen3.8-27B-OrcaRouter-GSQ-RCO-IQ3_XXS-NInfer'."
-    }
     $Files["qwen3.8-27b-orcarouter-iq3-xxs-vision-mtp.ninfer"] = $AllAvailable["qwen3.8-27b-orcarouter-iq3-xxs-vision-mtp.ninfer"]
 }
 $env:HF_HUB_CACHE = Join-Path $Root ".deps\hf-cache"
